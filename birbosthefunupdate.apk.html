@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birb OS - The Fun Update</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles to complement Tailwind */
+        :root {
+            --wallpaper: url('https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?q=80&w=1974&auto=format&fit=crop');
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--wallpaper) no-repeat center center/cover;
+            color: white;
+            overflow: hidden;
+            user-select: none;
+            transition: background-image 0.5s ease-in-out;
+        }
+        .font-firacode { font-family: 'Fira Code', monospace; }
+
+        /* Desktop icon styles */
+        .desktop-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 90px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            position: absolute; /* For dragging */
+        }
+        .desktop-icon:hover { background-color: rgba(255, 255, 255, 0.15); }
+        .desktop-icon span { font-size: 2.5rem; }
+        .desktop-icon p { font-size: 0.8rem; margin-top: 4px; text-shadow: 1px 1px 3px black; word-break: break-word; }
+        
+        /* Window styles */
+        .window {
+            min-width: 320px;
+            min-height: 220px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: opacity 0.2s, transform 0.2s;
+            resize: both;
+            overflow: hidden;
+        }
+        .window.minimized {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        .window-header { cursor: move; }
+        .window-controls button { transition: background-color 0.2s; }
+        
+        /* Custom scrollbar */
+        .window-body::-webkit-scrollbar { width: 8px; }
+        .window-body::-webkit-scrollbar-track { background: #2d3748; }
+        .window-body::-webkit-scrollbar-thumb { background: #718096; border-radius: 4px; }
+        
+        /* Taskbar */
+        .taskbar-item {
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        .taskbar-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background-color: #38bdf8; /* sky-500 */
+            border-radius: 50%;
+        }
+
+        /* Custom Notification & Dialog Styles */
+        .os-notification {
+            position: absolute;
+            bottom: 4rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(30, 41, 59, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+        }
+        .os-notification.show {
+            opacity: 1;
+            bottom: 5rem;
+        }
+        .dialog-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dialog-box {
+            background-color: #2d3748; /* gray-800 */
+            border: 1px solid #4a5568; /* gray-600 */
+            border-radius: 8px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .wallpaper-thumbnail {
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .wallpaper-thumbnail:hover, .wallpaper-thumbnail.selected {
+            border-color: #38bdf8; /* sky-500 */
+        }
+        canvas {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+
+    <div id="desktop" class="relative w-full h-screen overflow-hidden">
+        
+        <div id="desktopIconsContainer" class="p-4 grid grid-cols-2 sm:grid-cols-10">
+             <!-- Icons will be generated by JS -->
+        </div>
+
+        <div id="startMenu" class="hidden absolute bottom-14 left-2 bg-gray-800 bg-opacity-90 backdrop-blur-sm border border-gray-700 rounded-lg shadow-2xl p-2 w-64 text-white z-[999]">
+            <div class="p-2 font-bold border-b border-gray-700">Birb OS</div>
+            <div class="font-bold text-blue-400 p-2 mt-2">Apps</div>
+            <ul>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('terminal')"><span>💻</span> Terminal</li>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('files')"><span>📁</span> File Explorer</li>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('browser')"><span>🌐</span> Web Browser</li>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('calculator')"><span>🧮</span> Calculator</li>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('notepad')"><span>📝</span> Notepad</li>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('paint')"><span>🎨</span> Birb Paint</li>
+                <li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer" onclick="createWindow('music')"><span>🎵</span> Music Player</li>
+            </ul>
+            <div class="font-bold text-green-400 p-2 mt-2">Games</div>
+             <ul>
+                <li class="flex items-center gap-3 hover:bg-green-500 rounded p-2 cursor-pointer" onclick="createWindow('snake')"><span>🐍</span> Snake</li>
+                <li class="flex items-center gap-3 hover:bg-green-500 rounded p-2 cursor-pointer" onclick="createWindow('tictactoe')"><span>⭕</span> Tic-Tac-Toe</li>
+                <li class="flex items-center gap-3 hover:bg-green-500 rounded p-2 cursor-pointer" onclick="createWindow('gamemaker')"><span>🛠️</span> Game Maker</li>
+            </ul>
+             <div class="font-bold text-gray-400 p-2 mt-2">System</div>
+             <ul>
+                <li class="flex items-center gap-3 hover:bg-gray-500 rounded p-2 cursor-pointer" onclick="createWindow('packager')"><span>📦</span> App Packager</li>
+                <li class="flex items-center gap-3 hover:bg-gray-500 rounded p-2 cursor-pointer" onclick="createWindow('settings')"><span>⚙️</span> Settings</li>
+                <li class="flex items-center gap-3 hover:bg-gray-500 rounded p-2 cursor-pointer" onclick="createWindow('about')"><span>🪿</span> About Birb OS</li>
+            </ul>
+        </div>
+
+        <div id="taskbar" class="absolute bottom-0 left-0 w-full h-14 bg-gray-900 bg-opacity-70 backdrop-blur-lg flex items-center justify-between px-2 z-[998] border-t border-gray-700">
+            <div class="flex items-center gap-2">
+                <button id="startButton" class="bg-gray-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+                    🪿
+                </button>
+                <div id="taskbar-apps" class="flex items-center gap-2"></div>
+            </div>
+            <div id="clock" class="text-white font-sans px-4 text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let zIndexCounter = 100;
+        const openWindows = new Map();
+        let terminalHistory = { 'cwd': '/' };
+
+        // --- Virtual File System ---
+        const VFS = {
+            '/': {
+                type: 'directory',
+                children: {
+                    'README.md': { type: 'file', content: '# Welcome to Birb OS!\n\nThis is a more advanced version of the OS.' },
+                    'birb-art.txt': { type: 'file', content: `\n      .--.\n     |o_o |\n     |:_/ |\n    //   \\ \\\n   (|     | )\n  /'\\_   _/ \`\\\n  \\___)=(___/\n` },
+                    'apps': { type: 'directory', children: {
+                        'games': { type: 'directory', children: {} }
+                    } },
+                    'documents': { type: 'directory', children: {
+                        'todo.txt': { type: 'file', content: '- Conquer the world\n- Eat seeds\n- Take a nap' },
+                        'welcome.html': { type: 'file', content: `<h1>Hello World!</h1><p>This is an HTML file running in the Birb Browser.</p><button onclick="alert('Inline JS works!')">Click me</button>`}
+                    } },
+                    'music': { type: 'directory', children: {
+                        'birb-beats.mp3': { type: 'file', content: '' },
+                        'meadow-lark.mp3': { type: 'file', content: '' },
+                        'forest-chirps.mp3': { type: 'file', content: '' }
+                    }}
+                }
+            }
+        };
+        
+        // --- App Definitions ---
+        const desktopIcons = [
+            { name: 'Terminal', icon: '💻', type: 'terminal' },
+            { name: 'File Explorer', icon: '📁', type: 'files' },
+            { name: 'Web Browser', icon: '🌐', type: 'browser' },
+            { name: 'Calculator', icon: '🧮', type: 'calculator' },
+            { name: 'Notepad', icon: '📝', type: 'notepad' },
+            { name: 'Birb Paint', icon: '🎨', type: 'paint' },
+            { name: 'Music Player', icon: '🎵', type: 'music' },
+            { name: 'Snake', icon: '🐍', type: 'snake' },
+            { name: 'Tic-Tac-Toe', icon: '⭕', type: 'tictactoe' },
+            { name: 'Game Maker', icon: '🛠️', type: 'gamemaker' },
+            { name: 'App Packager', icon: '📦', type: 'packager' },
+            { name: 'Settings', icon: '⚙️', type: 'settings' },
+        ];
+        
+        const wallpapers = [
+            { name: 'Tropical', url: 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?q=80&w=1974&auto=format&fit=crop' },
+            { name: 'Mountains', url: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=80&w=2074&auto=format&fit=crop' },
+            { name: 'Abstract', url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=1887&auto=format&fit=crop' },
+            { name: 'Night Sky', url: 'https://images.unsplash.com/photo-1506443432602-ac2fcd6f54e0?q=80&w=1887&auto=format&fit=crop' },
+            { name: 'Cityscape', url: 'https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?q=80&w=2070&auto=format&fit=crop' },
+            { name: 'Desert', url: 'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=80&w=2070&auto=format&fit=crop' },
+            { name: 'Ocean', url: 'https://images.unsplash.com/photo-1507525428034-b723a9ce6890?q=80&w=2070&auto=format&fit=crop' },
+            { name: 'Minimalist', url: 'https://images.unsplash.com/photo-1536566482680-fca31930a0bd?q=80&w=1974&auto=format&fit=crop' },
+        ];
+
+        // --- DOM Elements ---
+        const desktop = document.getElementById('desktop');
+        const startButton = document.getElementById('startButton');
+        const startMenu = document.getElementById('startMenu');
+        const clockElement = document.getElementById('clock');
+        const taskbarApps = document.getElementById('taskbar-apps');
+        const desktopIconsContainer = document.getElementById('desktopIconsContainer');
+
+        // --- Core Functions ---
+
+        /**
+         * Creates and displays a new window on the desktop.
+         */
+        function createWindow(type, options = {}) {
+            if (options.isPackagedApp) {
+                for (const [id, win] of openWindows.entries()) {
+                    if (win.title === options.title) {
+                        bringToFront(win.element);
+                        return;
+                    }
+                }
+            }
+
+            const id = `${type}-${Date.now()}`;
+            const win = document.createElement('div');
+            win.id = id;
+            win.className = 'window absolute top-1/4 left-1/4 w-1/2 max-w-3xl h-3/5 bg-gray-800 rounded-lg flex flex-col text-white';
+            win.style.zIndex = zIndexCounter++;
+            
+            const [topOffset, leftOffset] = [Math.floor(Math.random() * 150) + 50, Math.floor(Math.random() * 200) + 100];
+            win.style.top = `${topOffset}px`;
+            win.style.left = `${leftOffset}px`;
+
+            const header = document.createElement('div');
+            header.className = 'window-header flex items-center justify-between bg-gray-900 p-2 rounded-t-lg';
+            const titleText = options.title || `${type.charAt(0).toUpperCase() + type.slice(1)}`;
+            header.innerHTML = `
+                <span class="font-bold pl-2">${options.icon || ''} ${titleText}</span>
+                <div class="window-controls flex items-center gap-2">
+                    <button class="minimize-btn bg-yellow-500 hover:bg-yellow-600 w-4 h-4 rounded-full"></button>
+                    <button class="maximize-btn bg-green-500 hover:bg-green-600 w-4 h-4 rounded-full"></button>
+                    <button class="close-btn bg-red-500 hover:bg-red-600 w-4 h-4 rounded-full"></button>
+                </div>
+            `;
+
+            const body = document.createElement('div');
+            body.className = 'window-body flex-grow p-1 overflow-auto';
+            
+            populateWindowBody(body, type, { ...options, winId: id });
+
+            win.appendChild(header);
+            win.appendChild(body);
+            desktop.appendChild(win);
+            
+            const windowState = { element: win, isMinimized: false, originalRect: null, type, title: titleText, icon: options.icon };
+            openWindows.set(id, windowState);
+
+            addWindowEventListeners(win, header, id);
+            updateTaskbar();
+            bringToFront(win);
+            
+            const input = win.querySelector('input:not([type=button]), textarea, canvas');
+            if(input) input.focus();
+        }
+        
+        /**
+         * Fills the window body with content based on its type.
+         */
+        function populateWindowBody(body, type, options) {
+            body.innerHTML = ''; // Clear previous content
+            switch (type) {
+                case 'terminal':
+                    body.className += ' font-firacode bg-black text-green-400 p-2';
+                    body.innerHTML = `<div>BirbOS Terminal [Version 3.0.0]</div><div>Type 'help' for commands.</div><br>`;
+                    const terminalInput = document.createElement('div');
+                    terminalInput.className = 'flex';
+                    terminalInput.innerHTML = `<span class="prompt">~${terminalHistory.cwd}&gt;</span><input class="command bg-transparent border-none text-green-400 w-full ml-2 focus:outline-none">`;
+                    body.appendChild(terminalInput);
+                    terminalInput.querySelector('input').addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') handleTerminalCommand(e.target, body);
+                    });
+                    break;
+                case 'files':
+                    renderFileExplorer(body, '/');
+                    break;
+                case 'about':
+                    body.innerHTML = `<div class="text-center p-4"><h2 class="text-3xl font-bold">🪿 Birb OS</h2><p class="mt-2 text-lg">The Fun Update</p><p class="mt-4 text-sm text-gray-400">Now with games, a game maker, and more creative tools!</p></div>`;
+                    break;
+                case 'calculator':
+                    body.className += ' bg-gray-700 p-2';
+                    const calcContainer = document.createElement('div');
+                    calcContainer.className = 'grid grid-cols-4 gap-1 h-full';
+                    const display = document.createElement('input');
+                    display.type = 'text';
+                    display.readOnly = true;
+                    display.className = 'col-span-4 bg-gray-900 text-right text-3xl p-2 rounded font-firacode';
+                    calcContainer.appendChild(display);
+                    ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].forEach(key => {
+                        const btn = document.createElement('input');
+                        btn.type = 'button';
+                        btn.value = key;
+                        btn.className = 'bg-gray-600 hover:bg-gray-500 rounded text-xl font-bold';
+                        if (['/', '*', '-', '+', '='].includes(key)) btn.classList.add('bg-orange-500', 'hover:bg-orange-400');
+                        btn.onclick = () => {
+                            if (key === '=') {
+                                try {
+                                    const sanitizedExpression = display.value.replace(/[^-()\d/*+.]/g, '');
+                                    display.value = new Function('return ' + sanitizedExpression)();
+                                } catch { 
+                                    display.value = 'Error'; 
+                                }
+                            } else {
+                                if (display.value === 'Error') display.value = '';
+                                display.value += key;
+                            }
+                        };
+                        calcContainer.appendChild(btn);
+                    });
+                    const clearBtn = document.createElement('input');
+                    clearBtn.type = 'button';
+                    clearBtn.value = 'C';
+                    clearBtn.className = 'col-span-4 bg-red-500 hover:bg-red-400 rounded text-xl font-bold p-2';
+                    clearBtn.onclick = () => display.value = '';
+                    calcContainer.appendChild(clearBtn);
+                    body.appendChild(calcContainer);
+                    break;
+                case 'notepad':
+                    body.className += ' p-0 flex flex-col';
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'w-full h-full bg-gray-200 text-black font-firacode p-2 focus:outline-none flex-grow';
+                    textarea.value = options.content || '';
+                    const saveBtn = document.createElement('button');
+                    saveBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white p-2';
+                    saveBtn.textContent = 'Save File';
+                    saveBtn.onclick = () => {
+                        showPrompt({
+                            title: 'Save File',
+                            message: 'Enter the full path to save the file:',
+                            inputLabel: 'Path',
+                            defaultValue: '/documents/new-file.txt'
+                        }).then(path => {
+                            if (path) saveFile(path, textarea.value);
+                        }).catch(() => {
+                            showNotification('Save cancelled.', 'info');
+                        });
+                    };
+                    body.appendChild(textarea);
+                    body.appendChild(saveBtn);
+                    break;
+                case 'browser':
+                    body.className += ' p-0 flex flex-col';
+                    const browserBar = document.createElement('div');
+                    browserBar.className = 'flex items-center p-1 bg-gray-700';
+                    browserBar.innerHTML = `<input type="text" class="address-bar w-full bg-gray-900 border border-gray-600 rounded p-1 text-white font-firacode focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Enter VFS path (e.g. /documents/welcome.html)">`;
+                    const browserContent = document.createElement('iframe');
+                    browserContent.className = 'flex-grow border-none w-full h-full';
+                    browserContent.sandbox = 'allow-scripts';
+                    
+                    browserBar.querySelector('.address-bar').addEventListener('keydown', e => {
+                        if (e.key === 'Enter') {
+                            const path = e.target.value;
+                            const node = getVFSNode(path);
+                            if (node && node.type === 'file') {
+                                if (path.endsWith('.html')) {
+                                    browserContent.srcdoc = node.content;
+                                } else {
+                                    browserContent.srcdoc = `<pre style="color: white; font-family: 'Fira Code', monospace; white-space: pre-wrap; word-wrap: break-word;">${node.content}</pre>`;
+                                }
+                            } else {
+                                browserContent.srcdoc = `<p style="color: red;">File not found: ${path}</p>`;
+                            }
+                        }
+                    });
+
+                    body.appendChild(browserBar);
+                    body.appendChild(browserContent);
+                    break;
+                case 'settings':
+                    body.className += ' p-4';
+                    body.innerHTML = `<h3 class="text-xl font-bold mb-4">Settings</h3><p class="mb-2 text-gray-300">Choose your wallpaper:</p>`;
+                    const wallpaperGrid = document.createElement('div');
+                    wallpaperGrid.className = 'grid grid-cols-2 md:grid-cols-4 gap-4';
+                    wallpapers.forEach(wp => {
+                        const thumb = document.createElement('div');
+                        thumb.innerHTML = `
+                            <img src="${wp.url}" class="wallpaper-thumbnail w-full h-24 object-cover rounded-md" data-url="${wp.url}">
+                            <p class="text-center text-sm mt-1">${wp.name}</p>
+                        `;
+                        thumb.onclick = () => {
+                            document.body.style.backgroundImage = `url('${wp.url}')`;
+                            document.querySelectorAll('.wallpaper-thumbnail').forEach(t => t.classList.remove('selected'));
+                            thumb.querySelector('img').classList.add('selected');
+                            showNotification(`Wallpaper set to ${wp.name}!`);
+                        };
+                        wallpaperGrid.appendChild(thumb);
+                    });
+                    body.appendChild(wallpaperGrid);
+                    break;
+                case 'packager':
+                    body.className += ' p-4 flex flex-col';
+                    body.innerHTML = `
+                        <h3 class="text-xl font-bold mb-2">App Packager</h3>
+                        <p class="text-gray-400 mb-4">Paste HTML code below, then build and download a simulated APK.</p>
+                        <textarea id="packager-code" class="w-full h-40 bg-gray-900 text-green-400 font-firacode p-2 focus:outline-none rounded-md" placeholder="<h1>My New App</h1>"></textarea>
+                        <div id="build-log-container" class="mt-4 flex-grow">
+                            <h4 class="font-bold text-gray-300">Build Log</h4>
+                            <div id="build-log" class="w-full h-24 bg-black text-green-500 font-firacode p-2 rounded-md overflow-y-auto text-sm"></div>
+                        </div>
+                        <button id="package-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md transition-colors disabled:bg-gray-500">Build & Download APK</button>
+                    `;
+                    body.querySelector('#package-btn').onclick = async () => {
+                        const code = body.querySelector('#packager-code').value;
+                        const buildLog = body.querySelector('#build-log');
+                        const packageBtn = body.querySelector('#package-btn');
+
+                        if (!code) {
+                            showNotification('Cannot package an empty app.', 'error');
+                            return;
+                        }
+                        
+                        try {
+                            const appName = await showPrompt({
+                                title: 'Name Your App',
+                                message: 'Enter a name for your new application.',
+                                inputLabel: 'App Name',
+                                defaultValue: 'MyNewApp'
+                            });
+                            
+                            packageBtn.disabled = true;
+                            buildLog.innerHTML = '';
+
+                            const log = (message) => {
+                                buildLog.innerHTML += `> ${message}\n`;
+                                buildLog.scrollTop = buildLog.scrollHeight;
+                            };
+
+                            const steps = [
+                                "Initializing build environment...", "Validating HTML structure...", "Compiling assets...",
+                                "Generating AndroidManifest.xml...", "Packaging resources into .apk...", "Signing APK with debug key...",
+                                "Build successful. Preparing download."
+                            ];
+
+                            for (let i = 0; i < steps.length; i++) {
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                log(steps[i]);
+                            }
+                            
+                            const filename = `${appName.replace(/[^a-zA-Z0-9]/g, '')}.apk.html`;
+                            downloadFile(filename, code, 'text/html');
+
+                            showNotification(`'${appName}' has been downloaded!`, 'success');
+                            packageBtn.disabled = false;
+
+                        } catch {
+                            showNotification('APK build cancelled.', 'info');
+                            packageBtn.disabled = false;
+                        }
+                    };
+                    break;
+                case 'packagedApp':
+                    body.className += ' p-0 flex flex-col';
+                    const appFrame = document.createElement('iframe');
+                    appFrame.className = 'flex-grow border-none w-full h-full';
+                    appFrame.sandbox = 'allow-scripts';
+                    appFrame.srcdoc = options.content;
+                    body.appendChild(appFrame);
+                    break;
+                // NEW APPS & GAMES START HERE
+                case 'paint':
+                    body.className += ' p-0 flex flex-col bg-gray-700';
+                    const paintToolbar = document.createElement('div');
+                    paintToolbar.className = 'p-2 bg-gray-800 flex items-center gap-4';
+                    paintToolbar.innerHTML = `
+                        <label for="colorPicker">Color:</label>
+                        <input type="color" id="colorPicker" value="#FFFFFF">
+                        <label for="brushSize">Size:</label>
+                        <input type="range" id="brushSize" min="1" max="50" value="5">
+                        <button id="clearCanvas" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded">Clear</button>
+                    `;
+                    const paintCanvas = document.createElement('canvas');
+                    paintCanvas.className = 'flex-grow w-full h-full bg-white';
+                    body.appendChild(paintToolbar);
+                    body.appendChild(paintCanvas);
+
+                    const ctx = paintCanvas.getContext('2d');
+                    let isPainting = false;
+                    
+                    const resizeCanvas = () => {
+                        paintCanvas.width = paintCanvas.offsetWidth;
+                        paintCanvas.height = paintCanvas.offsetHeight;
+                    };
+                    
+                    const startPaint = (e) => {
+                        isPainting = true;
+                        draw(e);
+                    };
+                    const endPaint = () => isPainting = false;
+                    const draw = (e) => {
+                        if (!isPainting) return;
+                        ctx.lineWidth = document.getElementById('brushSize').value;
+                        ctx.lineCap = 'round';
+                        ctx.strokeStyle = document.getElementById('colorPicker').value;
+                        
+                        const rect = paintCanvas.getBoundingClientRect();
+                        const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                        const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                    };
+
+                    setTimeout(resizeCanvas, 0); // Resize after canvas is in DOM
+                    new ResizeObserver(resizeCanvas).observe(body);
+                    paintCanvas.addEventListener('mousedown', startPaint);
+                    paintCanvas.addEventListener('mouseup', endPaint);
+                    paintCanvas.addEventListener('mousemove', draw);
+                    paintCanvas.addEventListener('touchstart', startPaint);
+                    paintCanvas.addEventListener('touchend', endPaint);
+                    paintCanvas.addEventListener('touchmove', draw);
+                    
+                    paintToolbar.querySelector('#clearCanvas').onclick = () => {
+                        ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+                    };
+                    break;
+                case 'music':
+                    body.className += ' p-4 bg-gray-900';
+                    body.innerHTML = `<h3 class="text-xl font-bold mb-4">Music Player</h3>`;
+                    const trackList = document.createElement('ul');
+                    const musicDir = getVFSNode('/music');
+                    Object.keys(musicDir.children).forEach(track => {
+                        const li = document.createElement('li');
+                        li.className = 'p-2 hover:bg-gray-700 rounded flex items-center gap-3 cursor-pointer';
+                        li.innerHTML = `<span>🎵</span> ${track}`;
+                        li.onclick = () => showNotification(`Now playing: ${track} (simulation)`);
+                        trackList.appendChild(li);
+                    });
+                    body.appendChild(trackList);
+                    break;
+                case 'snake':
+                    body.className += ' p-0 flex flex-col items-center justify-center bg-black';
+                    const scoreEl = document.createElement('div');
+                    scoreEl.className = 'text-2xl font-bold p-2';
+                    const gameCanvas = document.createElement('canvas');
+                    body.appendChild(scoreEl);
+                    body.appendChild(gameCanvas);
+                    
+                    const ctxSnake = gameCanvas.getContext('2d');
+                    const gridSize = 20;
+                    let tileCount, snake, food, dx, dy, score, gameLoop;
+
+                    const resizeGame = () => {
+                        const size = Math.min(body.offsetWidth, body.offsetHeight) * 0.9;
+                        tileCount = Math.floor(size / gridSize);
+                        gameCanvas.width = gameCanvas.height = tileCount * gridSize;
+                        resetGame();
+                    };
+
+                    const resetGame = () => {
+                        snake = [{ x: Math.floor(tileCount/2), y: Math.floor(tileCount/2) }];
+                        food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
+                        dx = 0; dy = 0; score = 0;
+                        scoreEl.textContent = 'Score: 0';
+                        if (gameLoop) clearInterval(gameLoop);
+                        gameLoop = setInterval(runGame, 1000 / 10);
+                    };
+
+                    const runGame = () => {
+                        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+                        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(p => p.x === head.x && p.y === head.y)) {
+                            showNotification(`Game Over! Final Score: ${score}`, 'error', 5000);
+                            return resetGame();
+                        }
+                        
+                        snake.unshift(head);
+                        if (head.x === food.x && head.y === food.y) {
+                            score++;
+                            scoreEl.textContent = `Score: ${score}`;
+                            food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
+                        } else {
+                            snake.pop();
+                        }
+
+                        ctxSnake.fillStyle = 'black';
+                        ctxSnake.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+                        ctxSnake.fillStyle = 'lime';
+                        snake.forEach(p => ctxSnake.fillRect(p.x * gridSize, p.y * gridSize, gridSize - 2, gridSize - 2));
+                        ctxSnake.fillStyle = 'red';
+                        ctxSnake.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+                    };
+                    
+                    document.addEventListener('keydown', e => {
+                        if (e.key === 'ArrowUp' && dy === 0) { dx = 0; dy = -1; }
+                        else if (e.key === 'ArrowDown' && dy === 0) { dx = 0; dy = 1; }
+                        else if (e.key === 'ArrowLeft' && dx === 0) { dx = -1; dy = 0; }
+                        else if (e.key === 'ArrowRight' && dx === 0) { dx = 1; dy = 0; }
+                    });
+                    
+                    setTimeout(resizeGame, 0);
+                    new ResizeObserver(resizeGame).observe(body);
+                    break;
+                case 'tictactoe':
+                    body.className += ' p-4 flex flex-col items-center justify-center bg-gray-900';
+                    const tttStatus = document.createElement('h3');
+                    tttStatus.className = 'text-2xl font-bold mb-4';
+                    const tttGrid = document.createElement('div');
+                    tttGrid.className = 'grid grid-cols-3 gap-2';
+                    body.appendChild(tttStatus);
+                    body.appendChild(tttGrid);
+                    
+                    let currentPlayer = 'X';
+                    let board = Array(9).fill(null);
+                    tttStatus.textContent = `Player ${currentPlayer}'s Turn`;
+
+                    for (let i = 0; i < 9; i++) {
+                        const cell = document.createElement('button');
+                        cell.className = 'w-24 h-24 bg-gray-700 text-5xl font-bold rounded-md flex items-center justify-center hover:bg-gray-600';
+                        cell.onclick = () => {
+                            if (board[i] || checkWinner()) return;
+                            board[i] = currentPlayer;
+                            cell.textContent = currentPlayer;
+                            if (checkWinner()) {
+                                tttStatus.textContent = `Player ${currentPlayer} Wins!`;
+                            } else if (board.every(c => c)) {
+                                tttStatus.textContent = "It's a Draw!";
+                            } else {
+                                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                                tttStatus.textContent = `Player ${currentPlayer}'s Turn`;
+                            }
+                        };
+                        tttGrid.appendChild(cell);
+                    }
+                    const checkWinner = () => {
+                        const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+                        return lines.some(l => board[l[0]] && board[l[0]] === board[l[1]] && board[l[1]] === board[l[2]]);
+                    };
+                    break;
+                case 'gamemaker':
+                    const gameTemplate = `<!-- Your game's HTML structure -->
+<canvas id="gameCanvas" width="400" height="300" style="background: #333;"></canvas>
+
+<script>
+    // Your game's JavaScript logic
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let x = 50;
+    let y = 50;
+    const speed = 5;
+
+    function gameLoop() {
+        // Clear screen
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw player
+        ctx.fillStyle = 'cyan';
+        ctx.fillRect(x, y, 20, 20);
+        
+        // Simple movement (for demonstration)
+        x += (Math.random() - 0.5) * speed;
+        y += (Math.random() - 0.5) * speed;
+        
+        // Keep in bounds
+        if (x < 0) x = 0;
+        if (x > canvas.width - 20) x = canvas.width - 20;
+        if (y < 0) y = 0;
+        if (y > canvas.height - 20) y = canvas.height - 20;
+
+        requestAnimationFrame(gameLoop);
+    }
+    
+    // Start the game
+    gameLoop();
+<\/script>`;
+                    body.className += ' p-4 flex flex-col';
+                    body.innerHTML = `
+                        <h3 class="text-xl font-bold mb-2">Game Maker</h3>
+                        <p class="text-gray-400 mb-4">Edit the code below, then build it to create a new game on your desktop!</p>
+                        <textarea id="gamemaker-code" class="w-full h-full bg-gray-900 text-green-400 font-firacode p-2 focus:outline-none flex-grow rounded-md">${gameTemplate}</textarea>
+                        <button id="build-game-btn" class="mt-4 bg-green-500 hover:bg-green-600 text-white p-2 rounded-md">Build Game</button>
+                    `;
+                    body.querySelector('#build-game-btn').onclick = async () => {
+                        const code = body.querySelector('#gamemaker-code').value;
+                        if (!code) {
+                            showNotification('Cannot build an empty game.', 'error');
+                            return;
+                        }
+                        try {
+                            const appName = await showPrompt({
+                                title: 'Name Your Game',
+                                message: 'Enter a name for your new game.',
+                                inputLabel: 'Game Name',
+                                defaultValue: 'MyCoolGame'
+                            });
+                            
+                            const filename = appName.replace(/[^a-zA-Z0-9]/g, '') + '.bapp.html';
+                            const path = '/apps/games/' + filename;
+                            
+                            saveFile(path, code);
+                            createDynamicDesktopIcon({ name: appName, path: path, icon: '🎮' });
+                            showNotification(`Successfully built '${appName}'!`, 'success');
+
+                        } catch {
+                            showNotification('Game build cancelled.', 'info');
+                        }
+                    };
+                    break;
+            }
+        }
+
+        /**
+         * Renders the content of the File Explorer.
+         */
+        function renderFileExplorer(body, path) {
+            body.innerHTML = '';
+            const currentDir = getVFSNode(path);
+            if (!currentDir || currentDir.type !== 'directory') {
+                body.textContent = 'Error: Path not found.';
+                return;
+            }
+
+            body.className = 'window-body flex-grow p-4 overflow-y-auto';
+            body.innerHTML = `<h3 class="font-bold text-lg mb-2">Explorer: ${path}</h3>`;
+            
+            const fileList = document.createElement('ul');
+            if (path !== '/') {
+                const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-2 p-1 hover:bg-gray-700 rounded cursor-pointer';
+                li.innerHTML = `<span>⬆️</span> ..`;
+                li.onclick = () => renderFileExplorer(body, parentPath);
+                fileList.appendChild(li);
+            }
+
+            Object.entries(currentDir.children).forEach(([name, item]) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-2 p-1 hover:bg-gray-700 rounded cursor-pointer';
+                const fullPath = (path === '/' ? '' : path) + '/' + name;
+                const isHtml = name.endsWith('.html');
+                const isGame = name.endsWith('.bapp.html');
+                const icon = item.type === 'directory' ? '📁' : (isGame ? '🎮' : (isHtml ? '🌐' : '📄'));
+                li.innerHTML = `<span>${icon}</span> ${name}`;
+                li.onclick = () => {
+                    if (item.type === 'directory') {
+                        renderFileExplorer(body, fullPath);
+                    } else if (isGame) {
+                        createWindow('packagedApp', { title: name, icon: '🎮', content: item.content, isPackagedApp: true });
+                    } else if (isHtml) {
+                        createWindow('browser', { title: name, icon: '🌐' });
+                        setTimeout(() => {
+                            const browserWindow = Array.from(openWindows.values()).find(w => w.title === name)?.element;
+                            if (browserWindow) {
+                                const addressBar = browserWindow.querySelector('.address-bar');
+                                addressBar.value = fullPath;
+                                addressBar.dispatchEvent(new KeyboardEvent('keydown', { 'key': 'Enter' }));
+                            }
+                        }, 100);
+                    } else {
+                        createWindow('notepad', { title: name, content: item.content, icon: '📝' });
+                    }
+                };
+                fileList.appendChild(li);
+            });
+            body.appendChild(fileList);
+        }
+
+        /**
+         * Handles terminal commands.
+         */
+        function handleTerminalCommand(input, body) {
+            const command = input.value.trim();
+            const commandLine = input.parentElement;
+            
+            const historyLine = document.createElement('div');
+            historyLine.innerHTML = `<span class="prompt">~${terminalHistory.cwd}&gt;</span> ${command}`;
+            body.insertBefore(historyLine, commandLine);
+
+            if (command) {
+                 let res = '';
+                 const [cmd, ...args] = command.split(' ');
+                 switch (cmd) {
+                     case 'help': res = 'Commands: help, whoami, date, birb, clear, ls, cat, cd, echo, pwd'; break;
+                     case 'whoami': res = 'The Birb in Chief.'; break;
+                     case 'date': res = new Date().toLocaleString(); break;
+                     case 'birb': res = '🪿 Chirp!'; break;
+                     case 'clear': body.innerHTML = ''; break;
+                     case 'pwd': res = terminalHistory.cwd; break;
+                     case 'ls':
+                        const node = getVFSNode(getAbsolutePath(args[0] || terminalHistory.cwd));
+                        res = node && node.type === 'directory' ? Object.keys(node.children).join('\n') : 'ls: No such file or directory';
+                        break;
+                     case 'cat':
+                        const fileNode = getVFSNode(getAbsolutePath(args[0]));
+                        res = fileNode && fileNode.type === 'file' ? fileNode.content : `cat: ${args[0]}: No such file or directory`;
+                        break;
+                     case 'cd':
+                        const newPath = getAbsolutePath(args[0] || '/');
+                        const dirNode = getVFSNode(newPath);
+                        if (dirNode && dirNode.type === 'directory') {
+                            terminalHistory.cwd = newPath;
+                        } else {
+                            res = `cd: ${args[0]}: No such directory`;
+                        }
+                        break;
+                     case 'echo': res = args.join(' '); break;
+                     default: res = `command not found: ${command}`;
+                 }
+                 if (res) {
+                    const output = document.createElement('div');
+                    output.className = 'whitespace-pre-wrap';
+                    output.textContent = res;
+                    body.insertBefore(output, commandLine);
+                 }
+            }
+            
+            input.value = '';
+            commandLine.querySelector('.prompt').innerHTML = `~${terminalHistory.cwd}&gt;`;
+            if (cmd !== 'clear') body.appendChild(commandLine);
+            input.focus();
+            body.scrollTop = body.scrollHeight;
+        }
+
+        /**
+         * Adds all necessary event listeners to a new window.
+         */
+        function addWindowEventListeners(win, header, id) {
+            header.querySelector('.close-btn').onclick = (e) => { 
+                e.stopPropagation(); 
+                const winState = openWindows.get(id);
+                // Cleanup game loops if they exist
+                if (winState && winState.cleanup) winState.cleanup();
+                win.remove(); 
+                openWindows.delete(id); 
+                updateTaskbar(); 
+            };
+            header.querySelector('.minimize-btn').onclick = (e) => { e.stopPropagation(); toggleMinimize(id); };
+            header.querySelector('.maximize-btn').onclick = (e) => { e.stopPropagation(); toggleMaximize(id); };
+            win.addEventListener('mousedown', () => bringToFront(win));
+
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+                bringToFront(win);
+                const windowState = openWindows.get(id);
+                if (windowState.isMaximized) return;
+
+                let offsetX = e.clientX - win.offsetLeft;
+                let offsetY = e.clientY - win.offsetTop;
+                function onMouseMove(e2) { win.style.left = `${e2.clientX - offsetX}px`; win.style.top = `${e2.clientY - offsetY}px`; }
+                function onMouseUp() { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); }
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+        
+        // --- Window Actions ---
+        function bringToFront(win) {
+            if (parseInt(win.style.zIndex) < zIndexCounter - 1) {
+                win.style.zIndex = zIndexCounter++;
+            }
+            openWindows.forEach(w => w.element.classList.remove('border-sky-400'));
+            win.classList.add('border-sky-400');
+            updateTaskbar();
+        }
+        function toggleMinimize(id) {
+            const windowState = openWindows.get(id);
+            windowState.isMinimized = !windowState.isMinimized;
+            windowState.element.classList.toggle('minimized', windowState.isMinimized);
+            if (!windowState.isMinimized) {
+                bringToFront(windowState.element);
+            }
+            updateTaskbar();
+        }
+        function toggleMaximize(id) {
+            const windowState = openWindows.get(id);
+            const win = windowState.element;
+            if (windowState.isMaximized) {
+                const { top, left, width, height } = windowState.originalRect;
+                win.style.top = top; win.style.left = left; win.style.width = width; win.style.height = height;
+                windowState.isMaximized = false;
+            } else {
+                windowState.originalRect = { top: win.style.top, left: win.style.left, width: win.style.width, height: win.style.height };
+                win.style.top = '0'; win.style.left = '0'; win.style.width = '100%'; win.style.height = 'calc(100% - 3.5rem)';
+                windowState.isMaximized = true;
+            }
+        }
+
+        // --- Taskbar & Clock ---
+        function updateTaskbar() {
+            taskbarApps.innerHTML = '';
+            openWindows.forEach((state, id) => {
+                const item = document.createElement('button');
+                item.className = 'taskbar-item h-10 w-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded-md';
+                item.innerHTML = `<span>${state.icon || '🚀'}</span>`;
+                item.title = state.title;
+                if (parseInt(state.element.style.zIndex) === zIndexCounter - 1 && !state.isMinimized) {
+                    item.classList.add('active', 'bg-gray-600');
+                }
+                item.onclick = () => {
+                    const windowState = openWindows.get(id);
+                    if (windowState.isMinimized) {
+                        toggleMinimize(id);
+                    } else if (parseInt(windowState.element.style.zIndex) === zIndexCounter - 1) {
+                        toggleMinimize(id);
+                    } else {
+                        bringToFront(windowState.element);
+                    }
+                };
+                taskbarApps.appendChild(item);
+            });
+        }
+        function updateClock() {
+            clockElement.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // --- VFS & File Helpers ---
+        function getVFSNode(path) {
+            const parts = path.split('/').filter(p => p);
+            let currentNode = VFS['/'];
+            for (const part of parts) {
+                if (currentNode && currentNode.type === 'directory' && currentNode.children[part]) {
+                    currentNode = currentNode.children[part];
+                } else {
+                    return null;
+                }
+            }
+            return currentNode;
+        }
+        function getAbsolutePath(path) {
+            if (!path || path.startsWith('/')) return path || '/';
+            const newPath = (terminalHistory.cwd === '/' ? '' : terminalHistory.cwd) + '/' + path;
+            const parts = newPath.split('/');
+            const resolved = [];
+            for (const part of parts) {
+                if (part === '..') {
+                    resolved.pop();
+                } else if (part !== '.' && part !== '') {
+                    resolved.push(part);
+                }
+            }
+            return '/' + resolved.join('/');
+        }
+        function saveFile(path, content) {
+            const parts = path.split('/').filter(p => p);
+            const filename = parts.pop();
+            if (!filename) {
+                showNotification(`Invalid filename.`, 'error');
+                return;
+            }
+            const dirPath = '/' + parts.join('/');
+            const dirNode = getVFSNode(dirPath);
+            if (dirNode && dirNode.type === 'directory') {
+                dirNode.children[filename] = { type: 'file', content: content };
+            } else {
+                showNotification(`Error: Directory ${dirPath} not found.`, 'error');
+            }
+        }
+        function downloadFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // --- Draggable Desktop Icons ---
+        function makeIconDraggable(iconElement) {
+            iconElement.addEventListener('mousedown', e => {
+                e.preventDefault();
+                let isDragging = false;
+                const dragThreshold = 5;
+                let startX = e.clientX, startY = e.clientY;
+                let offsetX = e.clientX - iconElement.offsetLeft;
+                let offsetY = e.clientY - iconElement.offsetTop;
+
+                function onMouseMove(e2) {
+                    const dx = Math.abs(e2.clientX - startX);
+                    const dy = Math.abs(e2.clientY - startY);
+                    if (!isDragging && (dx > dragThreshold || dy > dragThreshold)) {
+                        isDragging = true;
+                        iconElement.style.position = 'absolute';
+                        iconElement.style.zIndex = '1000';
+                    }
+                    if (isDragging) {
+                        iconElement.style.left = `${e2.clientX - offsetX}px`;
+                        iconElement.style.top = `${e2.clientY - offsetY}px`;
+                    }
+                }
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    if (!isDragging) {
+                        iconElement.click();
+                    } else {
+                        iconElement.style.zIndex = 'auto';
+                    }
+                }
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+
+        function createDynamicDesktopIcon({ name, path, icon = '🚀' }) {
+            const iconEl = document.createElement('div');
+            iconEl.className = 'desktop-icon relative'; // Use relative for grid layout
+            iconEl.innerHTML = `<span>${icon}</span><p>${name}</p>`;
+            iconEl.title = `Run ${name}`;
+            
+            iconEl.onclick = () => {
+                const appNode = getVFSNode(path);
+                if (appNode && appNode.type === 'file') {
+                    createWindow('packagedApp', {
+                        title: name,
+                        icon: icon,
+                        content: appNode.content,
+                        isPackagedApp: true
+                    });
+                } else {
+                    showNotification(`Could not find app data at ${path}`, 'error');
+                }
+            };
+
+            desktopIconsContainer.appendChild(iconEl);
+            makeIconDraggable(iconEl);
+        }
+
+        // --- Custom UI Functions ---
+        function showNotification(message, type = 'info', duration = 3000) {
+            const notif = document.createElement('div');
+            notif.className = 'os-notification';
+            notif.textContent = message;
+            if (type === 'success') notif.style.backgroundColor = 'rgba(22, 163, 74, 0.9)';
+            if (type === 'error') notif.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+            desktop.appendChild(notif);
+            setTimeout(() => notif.classList.add('show'), 10);
+            setTimeout(() => {
+                notif.classList.remove('show');
+                setTimeout(() => notif.remove(), 500);
+            }, duration);
+        }
+
+        function showPrompt({ title, message, inputLabel, defaultValue = '' }) {
+            return new Promise((resolve, reject) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'dialog-overlay';
+                overlay.innerHTML = `
+                    <div class="dialog-box">
+                        <h3 class="text-xl font-bold mb-4">${title}</h3>
+                        <p class="mb-4 text-gray-300">${message}</p>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">${inputLabel}</label>
+                        <input type="text" id="dialogInput" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white font-firacode focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="flex justify-end gap-3 mt-6">
+                            <button id="dialogCancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors">Cancel</button>
+                            <button id="dialogOk" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md transition-colors">OK</button>
+                        </div>
+                    </div>
+                `;
+                desktop.appendChild(overlay);
+                const input = document.getElementById('dialogInput');
+                input.value = defaultValue;
+                input.focus();
+                input.select();
+                const closeDialog = (value) => {
+                    overlay.remove();
+                    if (value !== null && value.trim() !== '') {
+                        resolve(value);
+                    } else {
+                        reject();
+                    }
+                };
+                document.getElementById('dialogOk').onclick = () => closeDialog(input.value);
+                document.getElementById('dialogCancel').onclick = () => closeDialog(null);
+                input.onkeydown = (e) => { if (e.key === 'Enter') closeDialog(input.value); };
+                overlay.onclick = (e) => { if (e.target === overlay) closeDialog(null); };
+            });
+        }
+
+        // --- Initialization ---
+        function initializeDesktop() {
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            startButton.addEventListener('click', (e) => { e.stopPropagation(); startMenu.classList.toggle('hidden'); });
+            document.addEventListener('click', () => startMenu.classList.add('hidden'));
+
+            desktopIconsContainer.innerHTML = '';
+            desktopIcons.forEach(iconData => {
+                const iconEl = document.createElement('div');
+                iconEl.className = 'desktop-icon relative'; // Use relative for grid layout
+                iconEl.innerHTML = `<span>${iconData.icon}</span><p>${iconData.name}</p>`;
+                iconEl.onclick = () => createWindow(iconData.type, { icon: iconData.icon, title: iconData.name });
+                desktopIconsContainer.appendChild(iconEl);
+                makeIconDraggable(iconEl);
+            });
+
+            createWindow('about', {icon: '🪿'});
+        }
+
+        window.onload = initializeDesktop;
+    </script>
+</body>
+</html>

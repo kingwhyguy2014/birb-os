@@ -1,0 +1,1200 @@
+<html lang="en"><head><script>(function(firebaseConfig, initialAuthToken, appId) {
+        window.__firebase_config = firebaseConfig;
+        window.__initial_auth_token = initialAuthToken;
+        window.__app_id = appId;
+            })("\n{\n  \"apiKey\": \"AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY\",\n  \"authDomain\": \"bard-frontend.firebaseapp.com\",\n  \"projectId\": \"bard-frontend\",\n  \"storageBucket\": \"bard-frontend.firebasestorage.app\",\n  \"messagingSenderId\": \"175205271074\",\n  \"appId\": \"1:175205271074:web:2b7bd4d34d33bf38e6ec7b\"\n}\n","eyJhbGciOiJSUzI1NiIsImtpZCI6ImZiMjBhNDYyN2NmNDRiZDBhZGIwMjQyNTBkY2MxNTk0YmRkMGE0NjgiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BiYXJkLWZyb250ZW5kLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwiYXVkIjoiaHR0cHM6XC9cL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbVwvZ29vZ2xlLmlkZW50aXR5LmlkZW50aXR5dG9vbGtpdC52MS5JZGVudGl0eVRvb2xraXQiLCJ1aWQiOiIxNjg2OTM3OTY0MDgyMjUzNjkxMSIsImlzcyI6ImZpcmViYXNlLWFkbWluc2RrLWZic3ZjQGJhcmQtZnJvbnRlbmQuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJjbGFpbXMiOnsiYXBwSWQiOiJjXzNjNTFhN2EyOWI5OTg0MjVfYmlyYi1vcy1lbmhhbmNlZC0yMzcifSwiZXhwIjoxNzUzNDYwMTMxLCJpYXQiOjE3NTM0NTY1MzEsImFsZyI6IlJTMjU2In0.nt5EFqWHWWo27xURi_nC5J4PKokT1cqd4ZerFUAArOi8xl1VHlv38o7c7Ew5HbLUWOTYtActiYzJgJMA-mRZ6vj7oJWLLe6mUw4LqiJnuKpyKwfMPRg8FyrcmDApHoT8kJV873zwyDOlaB13p3Y_dcRWc6A2SshB5cSdRzQOp9AGRbLtjzDNoGYLopYBuyMOt00Az-m2AGmg8ximKYS9EJE8YT7JV-rmYN3JXiZiknFzk06k9WJ9weUKn-Gr0p1naChDCke0OWQP3U9Y8Na8sLw-HP02Rp-dW9XDZBtSqjTXr21K4HeUmPpNS0fqYr4TwtiLt80KIl8XLfknAUpc7A","c_3c51a7a29b998425_birb-os-enhanced-237")</script><script>(function() {
+  // Ensure this script is executed only once
+  if (window.firebaseAuthBridgeScriptLoaded) {
+    return;
+  }
+  window.firebaseAuthBridgeScriptLoaded = true;
+
+  let nextTokenPromiseId = 0;
+
+  // Stores { resolve, reject } for ongoing token requests
+  const pendingTokenPromises = {};
+
+  // Listen for messages from the Host Application
+  window.addEventListener('message', function(event) {
+
+    const messageData = event.data;
+
+  if (messageData && messageData.type === 'RESOLVE_NEW_FIREBASE_TOKEN') {
+      const { success, token, error, promiseId } = messageData ?? {};
+      if (pendingTokenPromises[promiseId]) {
+        if (success) {
+          pendingTokenPromises[promiseId].resolve(token);
+        } else {
+          pendingTokenPromises[promiseId].reject(new Error(error || 'Token refresh failed from host.'));
+        }
+        delete pendingTokenPromises[promiseId];
+      }
+    }
+  });
+
+  // Expose a function for the Generated App to request a new Firebase token
+  window.requestNewFirebaseToken = function() {
+    const currentPromiseId = nextTokenPromiseId++;
+    const promise = new Promise((resolve, reject) => {
+      pendingTokenPromises[currentPromiseId] = { resolve, reject };
+    });
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'REQUEST_NEW_FIREBASE_TOKEN',
+        promiseId: currentPromiseId
+      }, '*');
+    } else {
+      pendingTokenPromises[currentPromiseId].reject(new Error('No parent window to request token from.'));
+      delete pendingTokenPromises[currentPromiseId];
+    }
+    return promise;
+  };
+})();</script><script>
+let realOriginalGetUserMedia = null;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  realOriginalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+}
+
+(function() {
+  if (navigator.mediaDevices && navigator.mediaDevices.__proto__) {
+    try {
+      Object.defineProperty(navigator.mediaDevices.__proto__, 'getUserMedia', {
+        get: function() {
+          return undefined; // Or throw an error
+        },
+        configurable: false
+      });
+    } catch (error) {
+      console.error("Error defining prototype getter:", error);
+    }
+  }
+})();
+
+(function() {
+  const pendingMediaResolvers = {};
+  let nextMediaPromiseId = 0;
+
+  function requestMediaPermissions(constraints) {
+    const mediaPromiseId = nextMediaPromiseId++;
+    const promise = new Promise((resolve, reject) => {
+      pendingMediaResolvers[mediaPromiseId] = (granted) => {
+        delete pendingMediaResolvers[mediaPromiseId];
+        resolve(granted);
+      };
+    });
+
+    window.parent.postMessage({
+      type: 'requestMediaPermission',
+      constraints: constraints,
+      promiseId: mediaPromiseId,
+    }, '*');
+
+    return promise;
+  }
+
+  let originalGetUserMedia = realOriginalGetUserMedia;
+
+  function interceptGetUserMedia() {
+    if (navigator.mediaDevices) {
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        value: function(constraints) {
+          return requestMediaPermissions(constraints).then((granted) => {
+            if (granted) {
+              if (originalGetUserMedia) {
+                return originalGetUserMedia(constraints);
+              } else {
+                throw new Error("Original getUserMedia not available.");
+              }
+            } else {
+              throw new DOMException('Permission denied', 'NotAllowedError');
+            }
+          });
+        },
+        writable: false,
+        configurable: false
+      });
+    }
+  }
+
+  interceptGetUserMedia();
+
+  const observer = new MutationObserver(function(mutationsList, observer) {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'reconfigured' && mutation.name === 'getUserMedia' && mutation.object === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'attributes' && mutation.attributeName === 'getUserMedia' && mutation.target === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'childList' && mutation.addedNodes) {
+        mutation.addedNodes.forEach(node => {
+          if (node === navigator.mediaDevices) {
+            interceptGetUserMedia();
+          }
+        });
+      }
+    }
+  });
+
+  function interceptSpeechRecognition() {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      return;
+    }
+
+    const OriginalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const SpeechRecognitionWrapper = function(...args) {
+      const recognizer = new OriginalSpeechRecognition(...args);
+      const originalStart = recognizer.start.bind(recognizer);
+
+      recognizer.start = function() {
+        requestMediaPermissions({ audio: true }).then(granted => {
+          if (granted) {
+            originalStart();
+          } else {
+            const errorEvent = new SpeechRecognitionErrorEvent('error');
+            errorEvent.error = 'not-allowed'; // This is the standard error for permission denial.
+            recognizer.dispatchEvent(errorEvent);
+          }
+        });
+      };
+
+      return recognizer;
+    };
+
+    SpeechRecognitionWrapper.prototype = OriginalSpeechRecognition.prototype;
+    SpeechRecognitionWrapper.prototype.constructor = SpeechRecognitionWrapper;
+
+    if (window.SpeechRecognition) {
+      window.SpeechRecognition = SpeechRecognitionWrapper;
+    }
+    if (window.webkitSpeechRecognition) {
+      window.webkitSpeechRecognition = SpeechRecognitionWrapper;
+    }
+  }
+
+  interceptSpeechRecognition();
+
+  window.addEventListener('message', function(event) {
+    if (event.data) {
+      if (event.data.type === 'resolveMediaPermission') {
+        const { promiseId, granted } = event.data;
+        if (pendingMediaResolvers[promiseId]) {
+          pendingMediaResolvers[promiseId](granted);
+        }
+      }
+    }
+  });
+
+})();</script><script>((function(modelInformation) {
+  const originalFetch = window.fetch;
+  // TODO: b/421908508 - Move these out of the script and match all generative AI model calls.
+  let googleLlmBaseApiUrls = [
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.textModelName + ':streamGenerateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.textModelName + ':generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.imageModelName + ':predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.imageModelName + ':predictLongRunning',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.imageEditModelName + ':generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.videoModelName + ':predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.videoModelName + ':predictLongRunning',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.ttsModelName + ':generateContent',
+  ];
+  modelInformation.deprecatedTextModelNames.forEach((modelName) => {
+    googleLlmBaseApiUrls.push(
+      'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':streamGenerateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent',
+    );
+  });
+
+  const pendingFetchResolvers = {};
+  let nextPromiseId = 0;
+
+  function handleStringInput(input, optionsArgument) {
+    const actualUrl = input;
+    const fetchCallArgs = [actualUrl, optionsArgument];
+    const effectiveOptions = optionsArgument || {};
+    const bodyForApiKeyCheck = effectiveOptions.body;
+    const bodyForPostMessage = effectiveOptions.body;
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  function handleRequestInput(input, optionsArgument) {
+    const actualUrl = input.url;
+    const fetchCallArgs = [input, optionsArgument];
+    const effectiveOptions = { method: input.method, headers: new Headers(input.headers) };
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (optionsArgument) {
+      if (optionsArgument.method) effectiveOptions.method = optionsArgument.method;
+      if (optionsArgument.headers) effectiveOptions.headers = new Headers(optionsArgument.headers);
+      if ('body' in optionsArgument) {
+        bodyForApiKeyCheck = optionsArgument.body;
+        bodyForPostMessage = optionsArgument.body;
+      } else {
+        bodyForApiKeyCheck = undefined;
+        bodyForPostMessage = input.body;
+      }
+    } else {
+      bodyForApiKeyCheck = undefined;
+      bodyForPostMessage = input.body;
+    }
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  window.fetch = function(input, optionsArgument) {
+    let actualUrl;
+    let fetchCallArgs;
+    let effectiveOptions = {};
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (typeof input === 'string') {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleStringInput(input, optionsArgument));
+    } else if (input instanceof Request) {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleRequestInput(input, optionsArgument));
+    } else {
+      return originalFetch.apply(window, [input, optionsArgument]);
+    }
+
+    effectiveOptions.method = effectiveOptions.method || 'GET';
+    if (!effectiveOptions.headers) {
+      effectiveOptions.headers = new Headers();
+    }
+
+
+    if (typeof actualUrl === 'string' && googleLlmBaseApiUrls.some((url) => actualUrl.startsWith(url))) {
+      let apiKeyIsNull = true;
+
+      const regex = new RegExp("models/([^:]+)");
+      const modelNameMatch = actualUrl.match(regex);
+      const modelName = modelNameMatch ? modelNameMatch[1] : 'unspecified';
+
+
+      try {
+        const urlObject = new URL(actualUrl);  // Use URL object for robust parsing
+        const apiKeyParam = urlObject.searchParams.get('key');
+        if (apiKeyParam) {
+          apiKeyIsNull = false;
+        }
+      } catch (e) {
+        // Continue checks even if URL parsing fails
+      }
+
+      if (apiKeyIsNull && effectiveOptions.headers) {
+        const h = new Headers(effectiveOptions.headers);
+        const apiKeyHeaderValue = h.get('X-API-Key') || h.get('x-api-key');
+        if (apiKeyHeaderValue) {
+          apiKeyIsNull = false;
+          return originalFetch.apply(window, fetchCallArgs);
+        }
+      }
+
+      if (apiKeyIsNull && effectiveOptions.method && ['POST', 'PUT', 'PATCH'].includes(effectiveOptions.method.toUpperCase()) && typeof bodyForApiKeyCheck === 'string') {
+        try {
+          const bodyData = JSON.parse(bodyForApiKeyCheck);
+          if (bodyData && bodyData.apiKey) {
+            apiKeyIsNull = false;
+            return originalFetch.apply(window, fetchCallArgs);
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+      }
+
+      if(apiKeyIsNull) {
+        const promiseId = nextPromiseId++;
+        const promise = new Promise((resolve) => {
+          pendingFetchResolvers[promiseId] = (resolvedResponse) => {
+            delete pendingFetchResolvers[promiseId];
+            resolve(resolvedResponse);
+          };
+        });
+
+        let serializedBodyForPostMessage;
+        if (typeof bodyForPostMessage === 'string' || bodyForPostMessage == null) {
+            serializedBodyForPostMessage = bodyForPostMessage;
+        } else if (bodyForPostMessage instanceof ReadableStream) {
+            serializedBodyForPostMessage = null;
+        } else {
+            try {
+                serializedBodyForPostMessage = JSON.stringify(bodyForPostMessage);
+            } catch (e) {
+                serializedBodyForPostMessage = null;
+            }
+        }
+
+        const messageOptions = {
+            method: effectiveOptions.method,
+            headers: Object.fromEntries(new Headers(effectiveOptions.headers).entries()),
+            body: serializedBodyForPostMessage
+        };
+
+        window.parent.postMessage({
+          type: 'requestFetch',
+          url: actualUrl,
+          modelName: modelName,
+          options: messageOptions,
+          promiseId: promiseId,
+        }, '*');
+
+        return promise;
+      }
+      return originalFetch.apply(window, fetchCallArgs);
+    }
+    return originalFetch.apply(window, fetchCallArgs);
+  };
+
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'resolveFetch') {
+      const { promiseId, response } = event.data;
+      if (pendingFetchResolvers[promiseId]) {
+        try {
+          const reconstructedResponse = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: new Headers(response.headers),
+          });
+          pendingFetchResolvers[promiseId](reconstructedResponse);
+        } catch (error) {
+          pendingFetchResolvers[promiseId](new Response(null, { status: 500, statusText: "Interceptor Response Reconstruction Error" }));
+        }
+      }
+    }
+  });
+
+}))({"textModelName":"gemini-2.5-flash-preview-05-20","imageModelName":"imagen-3.0-generate-002","imageEditModelName":"gemini-2.0-flash-preview-image-generation","videoModelName":"veo-2.0-generate-001","ttsModelName":"gemini-2.5-flash-preview-tts","deprecatedTextModelNames":["gemini-2.0-flash","gemini-2.5-flash-preview-04-17"]})</script><script>(function() {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+
+    /**
+   * Normalizes an error event or a promise rejection reason into a structured error object.
+   * @param {*} errorEventOrReason The error object or reason.
+   * @return {object} Structured error data { message, name, stack }.
+   */
+  function getErrorObject(errorEventOrReason) {
+    if (errorEventOrReason instanceof Error) {
+      return {
+        message: errorEventOrReason.message,
+        name: errorEventOrReason.name,
+        stack: errorEventOrReason.stack,
+      };
+    }
+    // Fallback for non-Error objects.
+    try {
+      return {
+        message: JSON.stringify(errorEventOrReason),
+        name: 'UnknownErrorType',
+        stack: null,
+      };
+    } catch (e) {
+      return {
+        message: String(errorEventOrReason),
+        name: 'UnknownErrorTypeNonStringifiable',
+        stack: null,
+      };
+    }
+  }
+
+  /**
+   * Converts an array of arguments (from log/error) into a single string.
+   * Handles Error objects specially to include their message and stack.
+   * @param {Array<*>} args - Arguments passed to console methods.
+   * @return {string} A string representation of the arguments.
+   */
+  function stringifyArgs(args) {
+    return args
+      .map((arg) => {
+        if (arg instanceof Error) {
+          const {message, stack} = arg;
+          return `Error: ${message}${stack ? ('\nStack: ' + stack) : ''}`;
+        }
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return JSON.stringify(arg);
+          } catch (error) {
+            return '[Circular Object]';
+          }
+        } else {
+          return String(arg);
+        }
+      })
+      .join(' ');
+  }
+
+  console.log = function(...args) {
+    const logString = stringifyArgs(args);
+    window.parent.postMessage({ type: 'log', message: logString }, '*');
+    originalConsoleLog.apply(console, args);
+  };
+
+  console.error = function(...args) {
+    let errorData;
+    if (args.length > 0 && args[0] instanceof Error) {
+      const err = args[0];
+      // If the first arg is an Error, capture its details.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        ...getErrorObject(err),
+        rawArgsString: stringifyArgs(args.slice(1)),
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      // If not an Error object, treat all args as a general error message.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        message: stringifyArgs(args),
+        name: 'ConsoleLoggedError',
+        stack: null,
+        timestamp: new Date().toISOString(),
+      };
+    }
+    window.parent.postMessage(errorData, '*');
+    originalConsoleError.apply(console, args);
+  };
+
+  // Listen for global unhandled synchronous errors.
+  window.addEventListener('error', function(event) {
+    const errorDetails = event.error ? getErrorObject(event.error) : {
+      message: event.message,
+      name: 'GlobalError',
+      stack: null,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+    };
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'global',
+      ...errorDetails,
+      message: errorDetails.message || event.message,
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+  // Listen for unhandled promise rejections (asynchronous errors).
+  window.addEventListener('unhandledrejection', function(event) {
+    const errorDetails = getErrorObject(event.reason);
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'unhandledrejection',
+      ...errorDetails,
+      message: errorDetails.message || 'Unhandled Promise Rejection',
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Birb OS Fusion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;family=Fira+Code&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --wallpaper: url('https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?q=80&w=1974&auto=format&fit=crop');
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--wallpaper) no-repeat center center/cover;
+            color: white;
+            overflow: hidden;
+            user-select: none;
+            transition: background-image 0.5s ease-in-out;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+        }
+        .font-firacode { font-family: 'Fira Code', monospace; }
+
+        #device-selector {
+            background-color: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+        }
+        .device-btn {
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .device-btn:hover {
+            transform: scale(1.05);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .desktop-icon {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; width: 90px; height: 90px; padding: 8px;
+            border-radius: 12px; transition: background-color 0.2s; cursor: pointer; position: relative;
+        }
+        .desktop-icon:hover { background-color: rgba(255, 255, 255, 0.15); }
+        .desktop-icon span { font-size: 2.5rem; }
+        .desktop-icon p { font-size: 0.8rem; margin-top: 4px; text-shadow: 1px 1px 3px black; word-break: break-word; }
+        
+        .window {
+            min-width: 300px; min-height: 200px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5); border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: opacity 0.2s, transform 0.2s, top 0.3s, left 0.3s, width 0.3s, height 0.3s;
+            overflow: hidden;
+            border-radius: 1rem;
+        }
+        .window.no-resize { resize: none; }
+        .window.minimized { opacity: 0; transform: scale(0.8); pointer-events: none; }
+        .window-header { cursor: move; touch-action: none; border-top-left-radius: 1rem; border-top-right-radius: 1rem;}
+        .window-controls button { transition: background-color 0.2s; width: 1.25rem; height: 1.25rem; }
+        .resize-handle { position: absolute; bottom: 0; right: 0; width: 16px; height: 16px; cursor: se-resize; touch-action: none; z-index: 1; }
+        .window-body::-webkit-scrollbar { width: 8px; }
+        .window-body::-webkit-scrollbar-track { background: #2d3748; }
+        .window-body::-webkit-scrollbar-thumb { background: #718096; border-radius: 4px; }
+        
+        .taskbar {
+            height: 3.5rem; border-top: 1px solid #4a5568;
+        }
+        body.mode-phone .taskbar { /* Dock styles */
+             width: auto; left: 50%; transform: translateX(-50%); bottom: 0.5rem;
+             height: 4rem; border-radius: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.2); padding: 0 0.5rem;
+             background-color: rgba(30, 41, 59, 0.7);
+             backdrop-filter: blur(8px);
+        }
+        .taskbar-item.active::after {
+            content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+            width: 6px; height: 6px; background-color: #38bdf8; border-radius: 50%;
+        }
+        body.mode-phone .taskbar-item.active::after { display: none; }
+
+        #appDrawer {
+            transform: translateY(100%); transition: transform 0.3s ease-in-out;
+            visibility: hidden;
+        }
+        #appDrawer.show {
+            transform: translateY(0);
+            visibility: visible;
+        }
+        #appDrawerBackdrop {
+            transition: opacity 0.3s;
+            pointer-events: none;
+            opacity: 0;
+        }
+        #appDrawer.show + #appDrawerBackdrop {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #notification-center {
+            position: fixed; bottom: 4rem; left: 50%; transform: translateX(-50%);
+            z-index: 10000; display: flex; flex-direction: column; gap: 0.5rem; pointer-events:none;
+        }
+        .notification {
+            padding: 0.75rem 1.25rem; background-color: rgba(23, 37, 51, 0.9);
+            border-radius: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            animation: fadeIn-out 4s forwards;
+        }
+        @keyframes fadeIn-out { 0% { opacity: 0; transform: translateY(20px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(20px); } }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.inset-0{inset:0px}.bottom-0{bottom:0px}.bottom-14{bottom:3.5rem}.left-0{left:0px}.left-2{left:0.5rem}.z-\[10000\]{z-index:10000}.z-\[989\]{z-index:989}.z-\[990\]{z-index:990}.z-\[998\]{z-index:998}.z-\[999\]{z-index:999}.mx-auto{margin-left:auto;margin-right:auto}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mt-4{margin-top:1rem}.mt-2{margin-top:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-12{height:3rem}.h-screen{height:100vh}.h-10{height:2.5rem}.w-12{width:3rem}.w-64{width:16rem}.w-full{width:100%}.w-10{width:2.5rem}.max-w-4xl{max-width:56rem}.max-w-sm{max-width:24rem}.flex-grow{flex-grow:1}.cursor-pointer{cursor:pointer}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.gap-3{gap:0.75rem}.overflow-auto{overflow:auto}.overflow-hidden{overflow:hidden}.overflow-y-auto{overflow-y:auto}.rounded-lg{border-radius:0.5rem}.rounded{border-radius:0.25rem}.rounded-full{border-radius:9999px}.rounded-md{border-radius:0.375rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-gray-600{--tw-border-opacity:1;border-color:rgb(75 85 99 / var(--tw-border-opacity, 1))}.border-gray-700{--tw-border-opacity:1;border-color:rgb(55 65 81 / var(--tw-border-opacity, 1))}.border-sky-400{--tw-border-opacity:1;border-color:rgb(56 189 248 / var(--tw-border-opacity, 1))}.bg-black\/30{background-color:rgb(0 0 0 / 0.3)}.bg-gray-700{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.bg-gray-900{--tw-bg-opacity:1;background-color:rgb(17 24 39 / var(--tw-bg-opacity, 1))}.bg-gray-600{--tw-bg-opacity:1;background-color:rgb(75 85 99 / var(--tw-bg-opacity, 1))}.bg-green-500{--tw-bg-opacity:1;background-color:rgb(34 197 94 / var(--tw-bg-opacity, 1))}.bg-red-500{--tw-bg-opacity:1;background-color:rgb(239 68 68 / var(--tw-bg-opacity, 1))}.bg-yellow-500{--tw-bg-opacity:1;background-color:rgb(234 179 8 / var(--tw-bg-opacity, 1))}.bg-blue-600{--tw-bg-opacity:1;background-color:rgb(37 99 235 / var(--tw-bg-opacity, 1))}.bg-opacity-70{--tw-bg-opacity:0.7}.bg-opacity-90{--tw-bg-opacity:0.9}.bg-opacity-95{--tw-bg-opacity:0.95}.p-2{padding:0.5rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-1{padding:0.25rem}.p-3{padding:0.75rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-4{padding-left:1rem;padding-right:1rem}.pt-12{padding-top:3rem}.pl-2{padding-left:0.5rem}.text-center{text-align:center}.font-sans{font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"}.text-2xl{font-size:1.5rem;line-height:2rem}.text-5xl{font-size:3rem;line-height:1}.text-6xl{font-size:3.75rem;line-height:1}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.font-bold{font-weight:700}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.backdrop-blur-lg{--tw-backdrop-blur:blur(16px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.backdrop-blur-sm{--tw-backdrop-blur:blur(4px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:bg-blue-600:hover{--tw-bg-opacity:1;background-color:rgb(37 99 235 / var(--tw-bg-opacity, 1))}.hover\:bg-blue-500:hover{--tw-bg-opacity:1;background-color:rgb(59 130 246 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-600:hover{--tw-bg-opacity:1;background-color:rgb(75 85 99 / var(--tw-bg-opacity, 1))}.hover\:bg-green-600:hover{--tw-bg-opacity:1;background-color:rgb(22 163 74 / var(--tw-bg-opacity, 1))}.hover\:bg-red-600:hover{--tw-bg-opacity:1;background-color:rgb(220 38 38 / var(--tw-bg-opacity, 1))}.hover\:bg-yellow-600:hover{--tw-bg-opacity:1;background-color:rgb(202 138 4 / var(--tw-bg-opacity, 1))}.hover\:bg-blue-700:hover{--tw-bg-opacity:1;background-color:rgb(29 78 216 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-700:hover{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}@media (min-width: 640px){.sm\:grid-cols-5{grid-template-columns:repeat(5, minmax(0, 1fr))}.sm\:grid-cols-6{grid-template-columns:repeat(6, minmax(0, 1fr))}}@media (min-width: 768px){.md\:grid-cols-10{grid-template-columns:repeat(10, minmax(0, 1fr))}}@media (min-width: 1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style></head>
+<body class="bg-gray-900 mode-desktop">
+
+    <div id="device-selector" class="absolute inset-0 z-[10000] flex items-center justify-center p-4" style="display: none;">
+        <div class="text-center">
+            <h1 class="text-5xl font-bold mb-2">Birb OS Fusion</h1>
+            <p class="text-xl text-gray-300 mb-12">Please select your device type</p>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                <div onclick="selectDevice('phone')" class="device-btn p-6 rounded-lg border border-gray-600 cursor-pointer">
+                    <span class="text-6xl">📱</span>
+                    <h2 class="text-2xl font-bold mt-4">Phone</h2>
+                </div>
+                <div onclick="selectDevice('tablet')" class="device-btn p-6 rounded-lg border border-gray-600 cursor-pointer">
+                    <span class="text-6xl">🖼️</span>
+                    <h2 class="text-2xl font-bold mt-4">Tablet</h2>
+                </div>
+                <div onclick="selectDevice('desktop')" class="device-btn p-6 rounded-lg border border-gray-600 cursor-pointer">
+                    <span class="text-6xl">🖥️</span>
+                    <h2 class="text-2xl font-bold mt-4">Desktop</h2>
+                </div>
+                <div onclick="selectDevice('deckvr')" class="device-btn p-6 rounded-lg border border-gray-600 cursor-pointer">
+                    <span class="text-6xl">🎮</span>
+                    <h2 class="text-2xl font-bold mt-4">Deck / VR</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="os-container" class="hidden relative w-full h-screen" style="display: block;">
+        <div id="desktop" class="relative w-full h-screen overflow-hidden">
+            <div id="desktopIconsContainer" class="p-4 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 gap-2"><div class="desktop-icon"><span>💻</span><p>Squawk Box</p></div><div class="desktop-icon"><span>📁</span><p>The Nest</p></div><div class="desktop-icon"><span>🧮</span><p>Seed Counter</p></div><div class="desktop-icon"><span>📝</span><p>Feather Notes</p></div><div class="desktop-icon"><span>🎨</span><p>Preen Pad</p></div><div class="desktop-icon"><span>📦</span><p>Seed Sender</p></div><div class="desktop-icon"><span>⚙️</span><p>Plumage</p></div><div class="desktop-icon"><span>🪿</span><p>About Birb OS</p></div></div>
+        <div id="packager-1753456558627" class="window absolute bg-gray-800 flex flex-col text-white no-resize border-sky-400" style="top: 122px; left: 224px; width: 60%; height: 65%; z-index: 101;"><div class="window-header flex items-center justify-between bg-gray-900 p-2">
+                <span class="font-bold pl-2">📦 Seed Sender</span>
+                <div class="window-controls flex items-center gap-2">
+                    <button class="minimize-btn bg-yellow-500 hover:bg-yellow-600 rounded-full"></button>
+                    <button class="maximize-btn bg-green-500 hover:bg-green-600 rounded-full"></button>
+                    <button class="close-btn bg-red-500 hover:bg-red-600 rounded-full"></button>
+                </div></div><div class="window-body flex-grow p-1 overflow-auto p-4 text-center">
+                        <h2 class="text-2xl font-bold mb-4">Seed Sender</h2>
+                        <p class="mb-6 text-gray-300">Send your seeds (apps) out into the world.</p>
+                        <div class="flex flex-col gap-4 max-w-sm mx-auto">
+                            <button id="download-source-btn" class="bg-blue-600 hover:bg-blue-700 p-3 rounded-lg font-bold">Download Birb OS Source</button>
+                            <button id="view-source-btn" class="bg-gray-600 hover:bg-gray-700 p-3 rounded-lg font-bold">View Source Code</button>
+                        </div>
+                    </div><div class="resize-handle"></div></div></div>
+        <div id="startMenu" class="hidden absolute bottom-14 left-2 bg-gray-800 bg-opacity-90 backdrop-blur-sm border border-gray-700 rounded-lg shadow-2xl p-2 w-64 text-white z-[999]"><div class="p-2 font-bold border-b border-gray-700">Birb OS Fusion</div><ul><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>💻</span> Squawk Box</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>📁</span> The Nest</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>🧮</span> Seed Counter</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>📝</span> Feather Notes</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>🎨</span> Preen Pad</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>📦</span> Seed Sender</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>⚙️</span> Plumage</li><li class="flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer"><span>🪿</span> About Birb OS</li></ul></div>
+        <div id="appDrawer" class="absolute inset-0 bg-gray-900 bg-opacity-95 z-[990] p-6 pt-12 overflow-y-auto">
+             <div id="appDrawerGrid" class="grid grid-cols-4 sm:grid-cols-5 gap-4"></div>
+        </div>
+        <div id="appDrawerBackdrop" class="absolute inset-0 bg-black/30 z-[989]" onclick="toggleAppDrawer()"></div>
+        <div id="taskbar" class="taskbar absolute bottom-0 left-0 w-full bg-gray-900 bg-opacity-70 backdrop-blur-lg flex items-center justify-between px-2 z-[998]">
+            <div class="flex items-center gap-2">
+                <button id="startButton" class="bg-gray-700 hover:bg-blue-600 text-white font-bold p-2 rounded-lg flex items-center justify-center h-12 w-12 transition-colors">
+                    <span id="startIcon">🪿</span>
+                </button>
+                <div id="taskbar-apps" class="flex items-center gap-2"><button class="taskbar-item h-10 w-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded-md active bg-gray-600" title="Seed Sender"><span class="text-2xl">📦</span></button></div>
+            </div>
+            <div id="clock" class="text-white font-sans px-4 text-sm">09:16 AM</div>
+        </div>
+        <div id="notification-center"></div>
+    </div>
+    
+    <script>
+        // --- State Management ---
+        let DEVICE_MODE = 'desktop';
+        let zIndexCounter = 100;
+        const openWindows = new Map();
+        let terminalHistory = { 'cwd': '/' };
+
+        // --- Virtual File System & App Definitions ---
+        const VFS = {'/':{type:'directory',children:{'README.md':{type:'file',content:'# Welcome to Birb OS!'},'birb-art.txt':{type:'file',content:'\n      .--.\n     |o_o |\n     |:_/ |\n    //   \\ \\\n   (|     | )\n  /`\\_   _/`\\\n  \\___)=(___/\n'},'apps':{type:'directory',children:{'games':{type:'directory',children:{}}}},'documents':{type:'directory',children:{'todo.txt':{type:'file',content:'- Conquer the world\n- Eat seeds\n- Take a nap'}}}}}};
+        const ALL_APPS = [{name:'Squawk Box',icon:'💻',type:'terminal'},{name:'The Nest',icon:'📁',type:'files'},{name:'Seed Counter',icon:'🧮',type:'calculator'},{name:'Feather Notes',icon:'📝',type:'notepad'},{name:'Preen Pad',icon:'🎨',type:'paint'},{name:'Seed Sender',icon:'📦',type:'packager'},{name:'Plumage',icon:'⚙️',type:'settings'},{name:'About Birb OS',icon:'🪿',type:'about'}];
+        const wallpapers = [{name:'Tropical',url:'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?q=80&w=1974&auto=format&fit=crop'},{name:'Mountains',url:'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=80&w=2074&auto=format&fit=crop'},{name:'Airplane',url:'https://images.unsplash.com/photo-1554104132-1537a541626a?q=80&w=1976&auto=format&fit=crop'}];
+        
+        // --- DOM Elements ---
+        const osContainer = document.getElementById('os-container');
+        const desktop = document.getElementById('desktop');
+        const startButton = document.getElementById('startButton');
+        const startMenu = document.getElementById('startMenu');
+        const clockElement = document.getElementById('clock');
+        const taskbarApps = document.getElementById('taskbar-apps');
+        const desktopIconsContainer = document.getElementById('desktopIconsContainer');
+        const appDrawer = document.getElementById('appDrawer');
+        const appDrawerGrid = document.getElementById('appDrawerGrid');
+        const notificationCenter = document.getElementById('notification-center');
+
+        function selectDevice(mode) {
+            DEVICE_MODE = mode;
+            document.body.classList.add(`mode-${mode}`);
+            document.getElementById('device-selector').style.display = 'none';
+            osContainer.style.display = 'block';
+            initializeDesktop();
+        }
+
+        function createWindow(type, options = {}) {
+            const id = `${type}-${Date.now()}`;
+            const win = document.createElement('div');
+            win.id = id;
+            win.className = 'window absolute bg-gray-800 flex flex-col text-white';
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (DEVICE_MODE === 'phone' || DEVICE_MODE === 'tablet' || isTouchDevice) win.classList.add('no-resize');
+
+            const isMobile = DEVICE_MODE === 'phone';
+            const appData = ALL_APPS.find(a => a.type === type) || {};
+            const titleText = options.title || appData.name || `${type.charAt(0).toUpperCase() + type.slice(1)}`;
+            
+            const initialRect = isMobile ? { top: '0', left: '0', width: '100%', height: '100%' } : { top: `${Math.floor(Math.random()*100)+50}px`, left: `${Math.floor(Math.random()*150)+75}px`, width: '60%', height: '65%' };
+            Object.assign(win.style, initialRect);
+            if (isMobile) win.style.borderRadius = '0';
+            win.style.zIndex = zIndexCounter++;
+
+            const header = document.createElement('div');
+            header.className = 'window-header flex items-center justify-between bg-gray-900 p-2';
+            header.innerHTML = `
+                <span class="font-bold pl-2">${options.icon || appData.icon || ''} ${titleText}</span>
+                <div class="window-controls flex items-center gap-2">
+                    <button class="minimize-btn bg-yellow-500 hover:bg-yellow-600 rounded-full"></button>
+                    ${!isMobile ? '<button class="maximize-btn bg-green-500 hover:bg-green-600 rounded-full"></button>' : ''}
+                    <button class="close-btn bg-red-500 hover:bg-red-600 rounded-full"></button>
+                </div>`;
+            
+            const body = document.createElement('div');
+            body.className = 'window-body flex-grow p-1 overflow-auto';
+            populateWindowBody(body, type, { ...options, winId: id });
+            
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            
+            win.appendChild(header);
+            win.appendChild(body);
+            if (!isMobile) win.appendChild(resizeHandle);
+            desktop.appendChild(win);
+            
+            const windowState = { element: win, isMinimized: false, isMaximized: isMobile, originalRect: null, type, title: titleText, icon: options.icon || appData.icon };
+            if (!isMobile) windowState.originalRect = { top: win.style.top, left: win.style.left, width: win.style.width, height: win.style.height };
+            openWindows.set(id, windowState);
+            
+            addWindowEventListeners(win, header, resizeHandle, id);
+            updateTaskbar();
+            bringToFront(win);
+        }
+
+        function populateWindowBody(body, type, options) {
+            body.innerHTML = ''; // Clear previous content
+            const appData = ALL_APPS.find(a => a.type === type) || {};
+            const appName = appData.name || type;
+
+            switch (type) {
+                case 'terminal':
+                    body.className += ' font-firacode bg-black text-green-400 p-2';
+                    body.innerHTML = `<div>${appName} [Version 3.0.0]</div><div>Type 'help' for commands.</div><br>`;
+                    const terminalInput = document.createElement('div');
+                    terminalInput.className = 'flex';
+                    terminalInput.innerHTML = `<span class="prompt">~${terminalHistory.cwd}&gt;</span><input class="command bg-transparent border-none text-green-400 w-full ml-2 focus:outline-none">`;
+                    body.appendChild(terminalInput);
+                    terminalInput.querySelector('input').addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') handleTerminalCommand(e.target, body);
+                    });
+                    setTimeout(() => terminalInput.querySelector('input').focus(), 100);
+                    break;
+                case 'files':
+                    renderFileExplorer(body, '/');
+                    break;
+                case 'calculator':
+                    body.className += ' bg-gray-700 p-2';
+                    const calcContainer = document.createElement('div');
+                    calcContainer.className = 'grid grid-cols-4 gap-1 h-full';
+                    const display = document.createElement('input');
+                    display.type = 'text';
+                    display.readOnly = true;
+                    display.className = 'col-span-4 bg-gray-900 text-right text-3xl p-2 rounded font-firacode';
+                    calcContainer.appendChild(display);
+                    ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].forEach(key => {
+                        const btn = document.createElement('input'); btn.type = 'button'; btn.value = key;
+                        btn.className = 'bg-gray-600 hover:bg-gray-500 rounded text-xl font-bold p-3';
+                        if (['/', '*', '-', '+', '='].includes(key)) btn.classList.add('bg-orange-500', 'hover:bg-orange-400');
+                        btn.onclick = () => {
+                            if (key === '=') {
+                                try { 
+                                    const safeEval = new Function('return ' + display.value.replace(/[^-()\d/*+.]/g, ''));
+                                    display.value = safeEval();
+                                } catch { display.value = 'Error'; }
+                            } else { display.value += key; }
+                        };
+                        calcContainer.appendChild(btn);
+                    });
+                    const clearBtn = document.createElement('input'); clearBtn.type = 'button'; clearBtn.value = 'C';
+                    clearBtn.className = 'col-span-4 bg-red-500 hover:bg-red-400 rounded text-xl font-bold p-2';
+                    clearBtn.onclick = () => display.value = '';
+                    calcContainer.appendChild(clearBtn);
+                    body.appendChild(calcContainer);
+                    break;
+                case 'notepad':
+                    body.className += ' p-0 flex flex-col';
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'w-full h-full bg-gray-200 text-black font-firacode p-2 focus:outline-none flex-grow';
+                    textarea.value = options.content || '';
+                    const saveBtn = document.createElement('button');
+                    saveBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white p-2 flex-shrink-0';
+                    saveBtn.textContent = 'Save File';
+                    saveBtn.onclick = () => {
+                         const path = prompt("Save as (e.g., /documents/mynote.txt):", "/documents/new-file.txt");
+                         if (path) saveFile(path, textarea.value);
+                    };
+                    body.appendChild(textarea);
+                    body.appendChild(saveBtn);
+                    break;
+                case 'paint':
+                    body.className += ' p-0 flex flex-col bg-gray-700';
+                    const controls = document.createElement('div');
+                    controls.className = 'p-2 flex items-center justify-center gap-4 flex-shrink-0';
+                    controls.innerHTML = `<label>Color: <input type="color" id="brush-color" value="#FFFFFF"></label> <label>Size: <input type="range" id="brush-size" min="1" max="50" value="5"></label> <button id="clear-canvas-btn" class="bg-red-500 p-2 rounded">Clear</button>`;
+                    const canvas = document.createElement('canvas');
+                    canvas.className = 'w-full flex-grow bg-white cursor-crosshair';
+                    body.appendChild(controls);
+                    body.appendChild(canvas);
+                    setupPaint(canvas, controls);
+                    break;
+                case 'packager':
+                    body.className += ' p-4 text-center';
+                    body.innerHTML = `
+                        <h2 class="text-2xl font-bold mb-4">${appName}</h2>
+                        <p class="mb-6 text-gray-300">Send your seeds (apps) out into the world.</p>
+                        <div class="flex flex-col gap-4 max-w-sm mx-auto">
+                            <button id="download-source-btn" class="bg-blue-600 hover:bg-blue-700 p-3 rounded-lg font-bold">Download Birb OS Source</button>
+                            <button id="view-source-btn" class="bg-gray-600 hover:bg-gray-700 p-3 rounded-lg font-bold">View Source Code</button>
+                        </div>
+                    `;
+                    body.querySelector('#download-source-btn').onclick = () => {
+                        downloadFile('birb-os.html', document.documentElement.outerHTML, 'text/html');
+                        showNotification('Source code download started!');
+                    };
+                    body.querySelector('#view-source-btn').onclick = () => {
+                        createWindow('sourceviewer', { icon: '📄', title: 'Birb OS Source' });
+                    };
+                    break;
+                case 'sourceviewer':
+                    body.className += ' p-0';
+                    const pre = document.createElement('pre');
+                    pre.className = 'h-full w-full overflow-auto bg-gray-900 font-firacode text-sm';
+                    const code = document.createElement('code');
+                    code.className = 'text-green-400';
+                    code.textContent = document.documentElement.outerHTML;
+                    pre.appendChild(code);
+                    body.appendChild(pre);
+                    break;
+                case 'settings':
+                    body.className += ' p-4';
+                    body.innerHTML = `<h3 class="text-xl font-bold mb-4">${appName}</h3><p class="mb-2 text-gray-300">Choose your wallpaper:</p>`;
+                    const wallpaperGrid = document.createElement('div');
+                    wallpaperGrid.className = 'grid grid-cols-2 md:grid-cols-4 gap-4';
+                    wallpapers.forEach(wp => {
+                        const thumb = document.createElement('div');
+                        thumb.innerHTML = `<img src="${wp.url}" class="w-full h-24 object-cover rounded-md cursor-pointer border-2 border-transparent hover:border-sky-400" data-url="${wp.url}"><p class="text-center text-sm mt-1">${wp.name}</p>`;
+                        thumb.onclick = () => document.body.style.backgroundImage = `url('${wp.url}')`;
+                        wallpaperGrid.appendChild(thumb);
+                    });
+                    body.appendChild(wallpaperGrid);
+                    break;
+                case 'about':
+                    body.innerHTML = `<div class="text-center p-4"><h2 class="text-3xl font-bold">🪿 Birb OS Fusion</h2><p class="mt-2 text-lg">The "Birb Theme" Update</p><p class="mt-4 font-bold">Mode: ${DEVICE_MODE}</p></div>`;
+                    break;
+                default:
+                    body.innerHTML = `<p class="p-4">App '${type}' is under construction.</p>`;
+            }
+        }
+        
+        function addWindowEventListeners(win, header, resizeHandle, id) {
+            const isMobile = DEVICE_MODE === 'phone';
+            header.querySelector('.close-btn').onclick = (e) => { e.stopPropagation(); win.remove(); openWindows.delete(id); updateTaskbar(); };
+            header.querySelector('.minimize-btn').onclick = (e) => { e.stopPropagation(); isMobile ? (win.remove(), openWindows.delete(id), updateTaskbar()) : toggleMinimize(id); };
+            const maximizeBtn = header.querySelector('.maximize-btn');
+            if(maximizeBtn) maximizeBtn.onclick = (e) => { e.stopPropagation(); toggleMaximize(id); };
+            
+            win.addEventListener('pointerdown', () => bringToFront(win), { passive: true });
+
+            let dragging = false;
+            let resizing = false;
+            let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+            const onPointerMove = (e) => {
+                if (dragging) {
+                    win.style.left = `${startLeft + e.clientX - startX}px`;
+                    win.style.top = `${startTop + e.clientY - startY}px`;
+                }
+                if (resizing) {
+                    win.style.width = `${startWidth + e.clientX - startX}px`;
+                    win.style.height = `${startHeight + e.clientY - startY}px`;
+                }
+            };
+            const onPointerUp = () => {
+                dragging = false; resizing = false;
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', onPointerUp);
+            };
+
+            if (!isMobile) {
+                header.addEventListener('pointerdown', (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    dragging = true;
+                    startX = e.clientX; startY = e.clientY;
+                    startLeft = win.offsetLeft; startTop = win.offsetTop;
+                    document.addEventListener('pointermove', onPointerMove);
+                    document.addEventListener('pointerup', onPointerUp);
+                });
+                resizeHandle.addEventListener('pointerdown', (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    resizing = true;
+                    startX = e.clientX; startY = e.clientY;
+                    startWidth = win.offsetWidth; startHeight = win.offsetHeight;
+                    document.addEventListener('pointermove', onPointerMove);
+                    document.addEventListener('pointerup', onPointerUp);
+                });
+            }
+        }
+        
+        function bringToFront(win) {
+            if (parseInt(win.style.zIndex) < zIndexCounter - 1) win.style.zIndex = zIndexCounter++;
+            openWindows.forEach(w => w.element.classList.remove('border-sky-400'));
+            win.classList.add('border-sky-400');
+            updateTaskbar();
+        }
+
+        function toggleMinimize(id) {
+            const windowState = openWindows.get(id);
+            if (!windowState) return;
+            windowState.isMinimized = !windowState.isMinimized;
+            windowState.element.classList.toggle('minimized', windowState.isMinimized);
+            if (!windowState.isMinimized) bringToFront(windowState.element);
+            updateTaskbar();
+        }
+        
+        function toggleMaximize(id) {
+            const windowState = openWindows.get(id);
+            if (!windowState) return;
+            const win = windowState.element;
+            if (windowState.isMaximized) {
+                const { top, left, width, height } = windowState.originalRect;
+                win.style.top = top; win.style.left = left; win.style.width = width; win.style.height = height;
+                windowState.isMaximized = false;
+            } else {
+                if (!windowState.originalRect) windowState.originalRect = { top: win.style.top, left: win.style.left, width: win.style.width, height: win.style.height };
+                win.style.top = '0'; win.style.left = '0'; win.style.width = '100%'; win.style.height = `calc(100% - ${DEVICE_MODE === 'phone' ? '0px' : '3.5rem'})`;
+                windowState.isMaximized = true;
+            }
+        }
+
+        function updateTaskbar() {
+            taskbarApps.innerHTML = '';
+            if (DEVICE_MODE === 'phone') {
+                const pinnedApps = ['files', 'terminal', 'settings', 'about'];
+                pinnedApps.forEach(appType => {
+                    const appData = ALL_APPS.find(a => a.type === appType);
+                    if (!appData) return;
+                    const item = document.createElement('button');
+                    item.className = 'taskbar-item h-12 w-12 flex items-center justify-center bg-transparent hover:bg-gray-700/50 rounded-lg';
+                    item.innerHTML = `<span class="text-2xl">${appData.icon}</span>`;
+                    item.title = appData.name;
+                    item.onclick = () => createWindow(appData.type, { icon: appData.icon, title: appData.name });
+                    taskbarApps.appendChild(item);
+                });
+            } else {
+                openWindows.forEach((state, id) => {
+                    const item = document.createElement('button');
+                    item.className = 'taskbar-item h-10 w-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded-md';
+                    item.innerHTML = `<span class="text-2xl">${state.icon || '🚀'}</span>`;
+                    item.title = state.title;
+                    if (state.isMinimized) item.classList.add('opacity-50');
+                    if (!state.isMinimized && parseInt(state.element.style.zIndex) === zIndexCounter - 1) item.classList.add('active', 'bg-gray-600');
+                    item.onclick = () => {
+                        if (state.isMinimized) {
+                            toggleMinimize(id);
+                        } else {
+                           bringToFront(state.element);
+                        }
+                    };
+                    taskbarApps.appendChild(item);
+                });
+            }
+        }
+        
+        function updateClock() { clockElement.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+        function toggleAppDrawer() { appDrawer.classList.toggle('show'); }
+
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.className = 'notification';
+            notif.textContent = message;
+            notificationCenter.appendChild(notif);
+            setTimeout(() => notif.remove(), 4000);
+        }
+        
+        function downloadFile(filename, content, type) {
+            const blob = new Blob([content], { type: type });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
+        function getAbsolutePath(path) {
+            if (!path || path.startsWith('/')) return path || '/';
+            const newPath = (terminalHistory.cwd === '/' ? '' : terminalHistory.cwd) + '/' + path;
+            const parts = newPath.split('/'); const resolved = [];
+            for (const part of parts) {
+                if (part === '..') resolved.pop();
+                else if (part !== '.' && part !== '') resolved.push(part);
+            }
+            return '/' + resolved.join('/');
+        }
+        function getVFSNode(path) {
+            const parts = path.split('/').filter(p => p); let currentNode = VFS['/'];
+            for (const part of parts) {
+                if (currentNode.type === 'directory' && currentNode.children[part]) currentNode = currentNode.children[part];
+                else return null;
+            }
+            return currentNode;
+        }
+
+        function saveFile(path, content) {
+            const parts = path.split('/').filter(p => p);
+            const filename = parts.pop();
+            const dirPath = '/' + parts.join('/');
+            const dirNode = getVFSNode(dirPath);
+            if (dirNode && dirNode.type === 'directory' && filename) {
+                dirNode.children[filename] = { type: 'file', content: content };
+                showNotification(`File saved to ${path}`);
+            } else {
+                showNotification(`Error: Directory ${dirPath} not found.`);
+            }
+        }
+
+        function handleTerminalCommand(input, body) {
+            const command = input.value.trim();
+            const commandLine = input.parentElement;
+            
+            const historyLine = document.createElement('div');
+            historyLine.innerHTML = `<span class="prompt">~${terminalHistory.cwd}&gt;</span> ${command}`;
+            body.insertBefore(historyLine, commandLine);
+
+            if (command) {
+                 let res = ''; const [cmd, ...args] = command.split(' ');
+                 switch (cmd) {
+                     case 'help': res = 'Commands: help, whoami, date, birb, clear, ls, cat, cd, echo, pwd'; break;
+                     case 'whoami': res = 'The Birb in Chief.'; break;
+                     case 'date': res = new Date().toLocaleString(); break;
+                     case 'birb': res = '🪿 Chirp!'; break;
+                     case 'clear': body.innerHTML = ''; break;
+                     case 'pwd': res = terminalHistory.cwd; break;
+                     case 'ls':
+                        const node = getVFSNode(getAbsolutePath(args[0] || terminalHistory.cwd));
+                        res = node && node.type === 'directory' ? Object.keys(node.children).join('\n') : 'ls: No such file or directory';
+                        break;
+                     case 'cat':
+                        const fileNode = getVFSNode(getAbsolutePath(args[0]));
+                        res = fileNode && fileNode.type === 'file' ? fileNode.content : `cat: ${args[0]}: No such file or directory`;
+                        break;
+                     case 'cd':
+                        const newPath = getAbsolutePath(args[0] || '/');
+                        const dirNode = getVFSNode(newPath);
+                        if (dirNode && dirNode.type === 'directory') terminalHistory.cwd = newPath;
+                        else res = `cd: ${args[0]}: No such directory`;
+                        break;
+                     case 'echo': res = args.join(' '); break;
+                     default: res = `command not found: ${command}`;
+                 }
+                 if (res) {
+                    const output = document.createElement('div');
+                    output.className = 'whitespace-pre-wrap';
+                    output.textContent = res;
+                    body.insertBefore(output, commandLine);
+                 }
+            }
+            
+            input.value = '';
+            commandLine.querySelector('.prompt').innerHTML = `~${terminalHistory.cwd}&gt;`;
+            if (body.contains(commandLine)) body.appendChild(commandLine);
+            input.focus();
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function renderFileExplorer(body, path) {
+            body.innerHTML = '';
+            const currentDir = getVFSNode(path);
+            if (!currentDir || currentDir.type !== 'directory') {
+                body.textContent = 'Error: Path not found.'; return;
+            }
+            body.className = 'window-body flex-grow p-4 overflow-y-auto';
+            body.innerHTML = `<h3 class="font-bold text-lg mb-2">The Nest: ${path}</h3>`;
+            const fileList = document.createElement('ul');
+            if (path !== '/') {
+                const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-2 p-1 hover:bg-gray-700 rounded cursor-pointer';
+                li.innerHTML = `<span>⬆️</span> ..`;
+                li.onclick = () => renderFileExplorer(body, parentPath);
+                fileList.appendChild(li);
+            }
+            Object.entries(currentDir.children).forEach(([name, item]) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-2 p-1 hover:bg-gray-700 rounded cursor-pointer';
+                const fullPath = (path === '/' ? '' : path) + '/' + name;
+                li.innerHTML = `<span>${item.type === 'directory' ? '📁' : '📄'}</span> ${name}`;
+                li.onclick = () => item.type === 'directory' ? renderFileExplorer(body, fullPath) : createWindow('notepad', { title: name, content: item.content, icon: '📝' });
+                fileList.appendChild(li);
+            });
+            body.appendChild(fileList);
+        }
+
+        function setupPaint(canvas, controls) {
+            const ctx = canvas.getContext('2d');
+            const colorPicker = controls.querySelector('#brush-color');
+            const sizeSlider = controls.querySelector('#brush-size');
+            controls.querySelector('#clear-canvas-btn').onclick = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            };
+
+            const resizeCanvas = () => {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            };
+            resizeCanvas();
+            new ResizeObserver(resizeCanvas).observe(canvas);
+
+            let painting = false; let lastX=0; let lastY=0;
+            const startPos = (e) => {
+                painting = true;
+                const { clientX, clientY } = e.touches ? e.touches[0] : e;
+                const rect = canvas.getBoundingClientRect();
+                [lastX, lastY] = [clientX - rect.left, clientY - rect.top];
+            };
+            const endPos = () => painting = false;
+            const draw = (e) => {
+                if (!painting) return;
+                e.preventDefault();
+                const { clientX, clientY } = e.touches ? e.touches[0] : e;
+                const rect = canvas.getBoundingClientRect();
+                ctx.beginPath();
+                ctx.strokeStyle = colorPicker.value;
+                ctx.lineWidth = sizeSlider.value;
+                ctx.lineCap = 'round';
+                ctx.moveTo(lastX, lastY);
+                [lastX, lastY] = [clientX - rect.left, clientY - rect.top];
+                ctx.lineTo(lastX, lastY);
+                ctx.stroke();
+            };
+            canvas.addEventListener('pointerdown', startPos);
+            canvas.addEventListener('pointerup', endPos);
+            canvas.addEventListener('pointermove', draw);
+            canvas.addEventListener('pointerout', endPos);
+        }
+
+        function initializeDesktop() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            const createIcon = (appData, container) => {
+                const iconEl = document.createElement('div');
+                iconEl.className = 'desktop-icon';
+                iconEl.innerHTML = `<span>${appData.icon}</span><p>${appData.name}</p>`;
+                iconEl.onclick = () => {
+                    createWindow(appData.type, { icon: appData.icon, title: appData.name });
+                    if(DEVICE_MODE === 'phone') toggleAppDrawer();
+                };
+                container.appendChild(iconEl);
+            };
+
+            if (DEVICE_MODE === 'phone') {
+                desktopIconsContainer.style.display = 'none';
+                startMenu.style.display = 'none';
+                document.getElementById('startIcon').innerHTML = '☰';
+                startButton.onclick = toggleAppDrawer;
+                document.getElementById('clock').style.display = 'none';
+                
+                appDrawerGrid.innerHTML = '';
+                ALL_APPS.forEach(appData => createIcon(appData, appDrawerGrid));
+            } else {
+                startButton.addEventListener('click', (e) => { e.stopPropagation(); startMenu.classList.toggle('hidden'); });
+                desktop.addEventListener('click', () => startMenu.classList.add('hidden'));
+                
+                startMenu.innerHTML = `<div class="p-2 font-bold border-b border-gray-700">Birb OS Fusion</div>`;
+                const menuList = document.createElement('ul');
+                ALL_APPS.forEach(app => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center gap-3 hover:bg-blue-500 rounded p-2 cursor-pointer';
+                    li.innerHTML = `<span>${app.icon}</span> ${app.name}`;
+                    li.onclick = () => createWindow(app.type, { icon: app.icon, title: app.name });
+                    menuList.appendChild(li);
+                });
+                startMenu.appendChild(menuList);
+
+                desktopIconsContainer.innerHTML = '';
+                ALL_APPS.forEach(appData => createIcon(appData, desktopIconsContainer));
+            }
+            updateTaskbar();
+            createWindow('about');
+        }
+    </script>
+
+
+</body></html>
